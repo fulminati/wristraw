@@ -1,15 +1,22 @@
 
 CWD := $(shell pwd)
-ARDUINO := arduino
+SHELL := /bin/bash
+ARDUINO := /usr/bin/arduino
 PREFERENCES := ${HOME}/.arduino15/preferences.txt
 BM_PREF := boardsmanager.additional.urls
 PACKAGE_JSON := http://arduino.esp8266.com/stable/package_esp8266com_index.json
 PORT := /dev/ttyUSB0
 BAUD := 115200
 
+venv:
+	@virtualenv venv
+
+activate:
+	@source venv/bin/activate
+
 install: requirements add-boards-manager install-board
 
-requirements: requirements.txt
+requirements: activate requirements.txt
 	@pip install -r requirements.txt
 
 check-port:
@@ -29,7 +36,7 @@ nodemcu.bin:
 	@curl -sfLo nodemcu.bin https://github.com/nodemcu/nodemcu-firmware/releases/download/0.9.5_20150318/nodemcu_float_0.9.5_20150318.bin
 
 flash: nodemcu.bin
-	@esptool --port $(PORT) write_flash 0x00000 $(CWD)/nodemcu.bin
+	@esptool.py --port $(PORT) write_flash 0x00000 $(CWD)/nodemcu.bin
 
 inject: export CONFIG_APP_JS = $(shell python3 -m jsmin app/config/app.js | make -s escape)
 inject: export CONFIG_STYLE_CSS = $(shell python3 -m csscompressor app/config/style.css | make -s escape)
@@ -54,7 +61,7 @@ verify:
 	@mkdir -p $(CWD)/build/verify
 	@$(ARDUINO) --board esp8266:esp8266:generic --verify app/app.ino --pref build.path=$(CWD)/build/verify
 
-upload: check-port inject
+upload: check-port
 	@mkdir -p $(CWD)/build/upload
 	@$(ARDUINO) --board esp8266:esp8266:generic --upload app/app.ino --port $(PORT) --pref build.path=$(CWD)/build/upload
 	@sleep 15 && make -s monitor
